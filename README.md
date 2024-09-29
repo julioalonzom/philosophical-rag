@@ -32,49 +32,51 @@ philosophical_rag/
 └── requirements.txt
 ```
 
-## Installation
+# Philosophical RAG
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/philosophical-rag.git
-   cd philosophical-rag
-   ```
+# Philosophical RAG: Plato's Republic
 
-2. Create a virtual environment:
-   ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-   ```
+## Backend Setup
 
-3. Install dependencies:
+... (keep existing backend setup instructions)
+
+## Frontend Setup
+
+1. Navigate to the frontend directory:
    ```
-   pip install -r requirements.txt
+   cd frontend
    ```
 
-4. Set up environment variables:
-   Create a `.env` file in the `backend/config/` directory and add necessary variables (e.g., `SECRET_KEY` for Django).
-
-## Usage
-
-1. Prepare the text:
-   Place the text file (e.g., `republic.txt`) in `data/raw_texts/plato/` along with its metadata file.
-
-2. Process the text:
+2. Install dependencies:
    ```
-   python scripts/process_text.py
+   npm install
    ```
 
-3. Run the Django development server:
+3. Create a `.env` file in the frontend directory and add:
    ```
-   cd backend
+   REACT_APP_API_BASE_URL=http://localhost:8000/api
+   ```
+
+4. Start the development server:
+   ```
+   npm start
+   ```
+
+5. The React app will be available at `http://localhost:3000`
+
+## Running the Application
+
+1. Start the Django backend server (from the `backend` directory):
+   ```
    python manage.py runserver
    ```
 
-4. (Coming soon) Start the React frontend.
+2. In a separate terminal, start the React frontend server (from the `frontend` directory):
+   ```
+   npm start
+   ```
 
-## API Endpoints
-
-- `/api/query/`: POST endpoint for submitting queries about the philosophical text.
+3. Open your browser and navigate to `http://localhost:3000` to use the application.
 
 ## Development
 
