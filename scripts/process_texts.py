@@ -1,10 +1,11 @@
 import json
 import logging
 from pathlib import Path
-from typing import List, Dict, Generator, Set, Tuple, Optional
+from typing import List, Dict, Generator, Set, Tuple
 import time
 import hashlib
 import os
+import re
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -26,7 +27,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 def load_environment() -> None:
-    """Load environment variables and ensure API key is set."""
     logger.info(f"Attempting to load .env file from: {ENV_PATH}")
     load_dotenv(ENV_PATH)
     
@@ -34,7 +34,6 @@ def load_environment() -> None:
         raise ValueError("OPENAI_API_KEY is not set in the environment variables")
 
 def get_input_files() -> List[Dict[str, str]]:
-    """Get all input files and their corresponding metadata files."""
     input_files = []
     for author_dir in RAW_TEXTS_DIR.iterdir():
         if author_dir.is_dir():
@@ -50,22 +49,18 @@ def get_input_files() -> List[Dict[str, str]]:
     return input_files
 
 def generate_document_id(doc: Document) -> str:
-    """Create a unique ID based on the document content and metadata."""
     content = doc.page_content
     metadata = str(sorted((k, str(v)) for k, v in doc.metadata.items()))
     return hashlib.md5((content + metadata).encode()).hexdigest()
 
 def get_existing_ids(vectorstore: Chroma) -> Set[str]:
-    """Get existing document IDs from the vectorstore."""
     return set(vectorstore.get()['ids'])
 
 def batch_generator(data: List, batch_size: int) -> Generator[List, None, None]:
-    """Generate batches from a list."""
     for i in range(0, len(data), batch_size):
         yield data[i:i + batch_size]
 
 def load_document(file_path: str, metadata_path: str) -> Tuple[str, Dict]:
-    """Load the document text and its metadata."""
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             text = f.read()
@@ -81,22 +76,11 @@ def load_document(file_path: str, metadata_path: str) -> Tuple[str, Dict]:
         logger.error(f"Error decoding JSON metadata: {e}")
         raise
 
-def find_book_boundaries(text: str) -> List[Dict[str, int]]:
-    """Find the line boundaries for each book in the text."""
-    lines = text.split('\n')
-    book_boundaries = []
-    current_book = 0
-    for i, line in enumerate(lines):
-        if line.strip().lower().startswith('book'):
-            if current_book > 0:
-                book_boundaries[-1]['end_line'] = i - 1
-            current_book += 1
-            book_boundaries.append({'number': current_book, 'start_line': i + 1})
-    
-    if book_boundaries:
-        book_boundaries[-1]['end_line'] = len(lines) - 1
-    
-    return book_boundaries
+def find_nearest_section(lines: List[str], start_index: int) -> str:
+    for i in range(min(start_index, len(lines) - 1), -1, -1):
+        if lines[i].strip().isupper():
+            return lines[i].strip()
+    return "Unknown Section"
 
 def split_document(text: str, metadata: Dict) -> List[Document]:
     text_splitter = RecursiveCharacterTextSplitter(
@@ -105,39 +89,36 @@ def split_document(text: str, metadata: Dict) -> List[Document]:
         length_function=len,
     )
     
-    book_boundaries = find_book_boundaries(text)
     chunks = text_splitter.split_text(text)
+    lines = text.split('\n')
     
     documents = []
-    current_line = 1
+    current_line = 0
     for i, chunk in enumerate(chunks):
+        chunk_lines = chunk.split('\n')
+        chunk_start_line = current_line
+        chunk_end_line = current_line + len(chunk_lines) - 1
+        
+        section = find_nearest_section(lines, chunk_start_line)
+        
         chunk_metadata = {
             "author": metadata["author"],
-            "translator": metadata["translator"],
             "work": metadata["work"],
+            "section": section,
+            "start_line": chunk_start_line + 1,
+            "end_line": chunk_end_line + 1,
             "chunk_id": i,
         }
-        
-        chunk_start_line = current_line
-        chunk_end_line = current_line + len(chunk.split('\n')) - 1
-        
-        for book in book_boundaries:
-            if book['start_line'] <= chunk_start_line <= book['end_line']:
-                chunk_metadata['book_number'] = book['number']
-                for book_info in metadata["books"]:
-                    if book_info["number"] == book['number']:
-                        chunk_metadata['book_title'] = book_info["title"]
-                        break
-                break
-        
-        chunk_metadata['start_line'] = chunk_start_line
-        chunk_metadata['end_line'] = chunk_end_line
         
         documents.append(Document(page_content=chunk, metadata=chunk_metadata))
         
         current_line = chunk_end_line + 1
     
     return documents
+
+def combine_text_and_metadata(doc: Document) -> str:
+    metadata_str = f"Author: {doc.metadata['author']}, Work: {doc.metadata['work']}, Section: {doc.metadata['section']}"
+    return f"{metadata_str}\n\n{doc.page_content}"
 
 def create_embeddings_and_store(chunks: List[Document], persist_directory: str) -> Chroma:
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
@@ -149,7 +130,7 @@ def create_embeddings_and_store(chunks: List[Document], persist_directory: str) 
     
     for batch in batch_generator(chunks, BATCH_SIZE):
         ids = [generate_document_id(doc) for doc in batch]
-        texts = [doc.page_content for doc in batch]
+        texts = [combine_text_and_metadata(doc) for doc in batch]
         metadatas = [doc.metadata for doc in batch]
         
         vectorstore.add_texts(texts=texts, metadatas=metadatas, ids=ids)
@@ -188,7 +169,6 @@ def process_file(file_info: Dict[str, str]) -> None:
     logger.info(f"Total documents in vectorstore: {total_docs}")
 
 def main() -> None:
-    """Main function to process all input files."""
     try:
         load_environment()
         input_files = get_input_files()

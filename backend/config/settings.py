@@ -16,6 +16,13 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
+CORS_ALLOW_ALL_ORIGINS = True  # For development only. Use specific origins in production.
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Add your frontend URL here
+]
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -96,4 +103,4 @@ LOGGING = {
 }
 
 # RAG-specific settings
-RAG_CHROMA_PERSIST_DIRECTORY = os.getenv('RAG_CHROMA_PERSIST_DIRECTORY', Path('data/processed_texts/chroma_db').resolve())
+RAG_CHROMA_PERSIST_DIRECTORY = os.getenv('RAG_CHROMA_PERSIST_DIRECTORY', str(Path(BASE_DIR).parent / 'data' / 'processed_texts' / 'chroma_db'))

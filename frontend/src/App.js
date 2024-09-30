@@ -1,41 +1,29 @@
-import React, { useState } from 'react';
-import QueryForm from './components/QueryForm';
-import ResponseDisplay from './components/ResponseDisplay';
-import CitationSection from './components/CitationSection';
-import { submitQuery } from './api';
+import React, { lazy, Suspense } from 'react';
+import { useChat } from './useChat';
+import ErrorBoundary from './components/ErrorBoundary';
+import './App.css';
+
+const QueryForm = lazy(() => import('./components/QueryForm'));
+const ChatMessage = lazy(() => import('./components/ChatMessage'));
 
 function App() {
-  const [response, setResponse] = useState(null);
-  const [citations, setCitations] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const handleSubmit = async (query) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      console.log('Submitting query:', query);
-      const result = await submitQuery(query);
-      console.log('Received result:', result);
-      setResponse(result.response);
-      setCitations(result.citations);
-    } catch (err) {
-      console.error('Error:', err);
-      setError('An error occurred while processing your query. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { messages, isLoading, handleSubmit } = useChat();
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-4">Philosophical RAG: Plato's Republic</h1>
-      <QueryForm onSubmit={handleSubmit} />
-      {isLoading && <p className="text-gray-600">Processing your query...</p>}
-      {error && <p className="text-red-500">{error}</p>}
-      <ResponseDisplay response={response} />
-      <CitationSection citations={citations} />
-    </div>
+    <ErrorBoundary>
+      <div className="chat-container max-w-4xl mx-auto p-4">
+        <h1 className="chat-title text-3xl font-bold mb-6 text-center">Philosophical RAG: Plato's Republic</h1>
+        <Suspense fallback={<div>Loading...</div>}>
+          <div className="chat-messages space-y-4 mb-4">
+            {messages.map((message, index) => (
+              <ChatMessage key={index} message={message} />
+            ))}
+            {isLoading && <div className="loading-indicator text-center text-gray-500">Processing your query...</div>}
+          </div>
+          <QueryForm onSubmit={handleSubmit} />
+        </Suspense>
+      </div>
+    </ErrorBoundary>
   );
 }
 

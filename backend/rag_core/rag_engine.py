@@ -25,14 +25,13 @@ load_dotenv(env_path)
 class RAGEngine:
     def __init__(self, chroma_persist_directory=None):
         if chroma_persist_directory is None:
-            try:
-                from django.conf import settings
-                self.chroma_persist_directory = settings.RAG_CHROMA_PERSIST_DIRECTORY
-            except ImportError:
-                # If Django settings are not available, use environment variable or default
-                self.chroma_persist_directory = os.getenv('RAG_CHROMA_PERSIST_DIRECTORY', 'data/processed_texts/chroma_db')
+            project_root = Path(__file__).resolve().parent.parent.parent
+            self.chroma_persist_directory = str(project_root / 'data' / 'processed_texts' / 'chroma_db')
         else:
             self.chroma_persist_directory = chroma_persist_directory
+
+        self.chroma_persist_directory = str(Path(self.chroma_persist_directory).resolve())
+        print(f"Chroma persist directory: {self.chroma_persist_directory}")
 
         self.embeddings = None
         self.vectorstore = None
@@ -60,18 +59,18 @@ class RAGEngine:
     def _setup_qa_chain(self):
         try:
             logger.info("Setting up QA chain")
-            retriever = self.vectorstore.as_retriever(search_kwargs={"k": 5})  # Increased k for more context
+            retriever = self.vectorstore.as_retriever(search_kwargs={"k": 5})
             llm = ChatOpenAI(model_name="gpt-4o-mini",
                              temperature=0,
                              api_key=os.getenv("OPENAI_API_KEY"))
             
-            template = """You are an AI assistant specializing in philosophy, particularly the works of Plato and Aristotle. Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer. Always try to provide specific references to the text when possible, including the author, work, and book number if available.
+            template = """You are an AI assistant specializing in philosophy, particularly the works of Plato, Aristotle, and Aquinas. Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer. Always provide specific references to the text when possible, including the author, work, and section.
 
 Context:
 {context}
 
 Question: {question}
-Answer: """
+Answer: Provide a detailed answer, and include specific references to the text in your response, citing the author, work, and section where applicable."""
             
             prompt = ChatPromptTemplate.from_template(template)
             
@@ -101,31 +100,22 @@ Answer: """
             if len(source_documents) == 0:
                 logger.warning("No source documents returned. This may indicate an issue with the retriever.")
             
-            context = self._format_context(source_documents)
+            citations = self._format_citations(source_documents)
             
             logger.info("Query processed successfully")
-            return answer, context
+            return answer, citations
         except Exception as e:
             logger.error(f"Error processing query: {e}")
             raise
 
-    def _format_context(self, source_documents: List[Document]) -> List[Dict[str, Any]]:
-        context = []
-        for doc in source_documents:
-            context_item = {
-                "content": doc.page_content,
-                "metadata": doc.metadata
-            }
-            context.append(context_item)
-        return context
-
-    def _format_citations(self, source_documents: List[Document]) -> List[Dict[str, str]]:
+    def _format_citations(self, source_documents: List[Document]) -> List[Dict[str, Any]]:
         citations = []
         for doc in source_documents:
             citation = {
                 "content": doc.page_content,
-                "book_number": doc.metadata.get("book_number", "Unknown"),
-                "book_title": doc.metadata.get("book_title", "Unknown"),
+                "author": doc.metadata.get("author", "Unknown"),
+                "work": doc.metadata.get("work", "Unknown"),
+                "section": doc.metadata.get("section", "Unknown"),
                 "start_line": doc.metadata.get("start_line", "Unknown"),
                 "end_line": doc.metadata.get("end_line", "Unknown")
             }
@@ -135,10 +125,14 @@ Answer: """
 # Function to set up Django environment
 def setup_django():
     import django
-    from django.conf import settings
+    import sys
+    from pathlib import Path
+
+    project_root = Path(__file__).resolve().parent.parent.parent
+    sys.path.append(str(project_root))
+
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.config.settings')
-    if not settings.configured:
-        django.setup()
+    django.setup()
 
 # Test the RAGEngine class
 if __name__ == "__main__":
@@ -155,6 +149,8 @@ if __name__ == "__main__":
         print(f"Answer: {answer}")
         print("Citations:")
         for citation in citations:
-            print(f"- Book {citation['book_number']}, {citation['book_title']}: Lines {citation['start_line']}-{citation['end_line']}")
+            print(f"- {citation['author']}, {citation['work']}")
+            print(f"  Section: {citation['section']}")
+            print(f"  Lines {citation['start_line']}-{citation['end_line']}")
             print(f"  Content: {citation['content'][:100]}...")
         print("\n" + "="*50 + "\n")

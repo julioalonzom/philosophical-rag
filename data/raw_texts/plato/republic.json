@@ -1,17 +1,5 @@
 {
   "author": "Plato",
   "translator": "Benjamin Jowett",
-  "work": "Republic",
-  "books": [
-    {"number": 1, "title": "Book I"},
-    {"number": 2, "title": "Book II"},
-    {"number": 3, "title": "Book III"},
-    {"number": 4, "title": "Book IV"},
-    {"number": 5, "title": "Book V"},
-    {"number": 6, "title": "Book VI"},
-    {"number": 7, "title": "Book VII"},
-    {"number": 8, "title": "Book VIII"},
-    {"number": 9, "title": "Book IX"},
-    {"number": 10, "title": "Book X"}
-  ]
+  "work": "Republic"
 }
