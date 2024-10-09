@@ -10,22 +10,19 @@ const ChatMessage = React.memo(({ message }) => {
         <div className="citations mt-2">
           <button
             onClick={() => setShowCitations(!showCitations)}
-            className="text-blue-600 hover:text-blue-800 font-semibold"
+            className="text-blue-600 hover:text-blue-800 font-semibold focus:outline-none"
           >
             {showCitations ? 'Hide Citations' : 'Show Citations'}
           </button>
           {showCitations && (
-            <div className="mt-2">
+            <div className="mt-2 space-y-2">
               {message.citations.map((citation, index) => (
-                <div key={index} className="citation bg-white p-3 rounded-md shadow-sm mb-2">
+                <div key={index} className="citation bg-white p-3 rounded-md shadow-sm">
                   <p className="font-semibold text-sm text-gray-600">
                     {citation.author}, {citation.work}
                   </p>
                   <p className="text-sm text-gray-500">
-                    Section: {citation.section}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Lines {citation.start_line}-{citation.end_line}
+                    Section: {citation.section}, Lines {citation.start_line}-{citation.end_line}
                   </p>
                   <p className="mt-1 text-sm">{citation.content}</p>
                 </div>

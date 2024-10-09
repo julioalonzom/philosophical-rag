@@ -104,3 +104,10 @@ LOGGING = {
 
 # RAG-specific settings
 RAG_CHROMA_PERSIST_DIRECTORY = os.getenv('RAG_CHROMA_PERSIST_DIRECTORY', str(Path(BASE_DIR).parent / 'data' / 'processed_texts' / 'chroma_db'))
+
+STRIPE_PUBLIC_KEY = os.getenv('STRIPE_PUBLIC_KEY')
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
+STRIPE_PRICE_ID = os.getenv('STRIPE_PRICE_ID')
+
+LOGIN_URL = '/api/login/'  # Adjust this if your API is under a different path

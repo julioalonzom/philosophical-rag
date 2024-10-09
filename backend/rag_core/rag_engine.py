@@ -11,6 +11,8 @@ from langchain.schema import Document
 from langchain.chains import RetrievalQA
 from dotenv import load_dotenv
 from django.conf import settings
+from rag_app.models import User
+from rag_app.config import ACCOUNT_TIERS
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -21,6 +23,8 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 env_path = Path('backend/config/.env').resolve()
 load_dotenv(env_path)
+
+
 
 class RAGEngine:
     def __init__(self, chroma_persist_directory=None):
@@ -64,13 +68,20 @@ class RAGEngine:
                              temperature=0,
                              api_key=os.getenv("OPENAI_API_KEY"))
             
-            template = """You are an AI assistant specializing in philosophy, particularly the works of Plato, Aristotle, and Aquinas. Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer. Always provide specific references to the text when possible, including the author, work, and section.
+            template = """system_message: You are an AI assistant specializing in ancient and medieval philosophy, with expertise in Plato, Aristotle, and Aquinas. Answer the question using the provided context. Follow these guidelines:
 
-Context:
+1. Use at least one context piece, prioritizing primary sources.
+2. Cite specific references (author, work, section) when possible.
+3. If unsure, state that clearly instead of speculating.
+4. Be concise but accurate, using philosophical terms correctly.
+5. Compare philosophers' views briefly if relevant.
+
+human_message: Context:
 {context}
 
 Question: {question}
-Answer: Provide a detailed answer, and include specific references to the text in your response, citing the author, work, and section where applicable."""
+
+Answer:"""
             
             prompt = ChatPromptTemplate.from_template(template)
             
